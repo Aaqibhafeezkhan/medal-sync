@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix the backup that `launch --replace-local-library` promises being deleted
+  after about ten ordinary handoffs, together with the never-shared clips it
+  held. That backup, and the ones `repair` and `relocate` take, now go to
+  `Backups/kept-library-TIME-ID/`, which the automatic prune never touches.
+  Only a reviewed `retention` removes them, as a new kind it lists and warns
+  about (#106).
 - Fix the portable updater refusing every configured install with
   `Medal Sync check failed: status --json.` It now checks readiness with
   `setup check`, as Windows setup does, before it takes the session lock, so
