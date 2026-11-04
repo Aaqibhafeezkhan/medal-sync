@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fix one failed SSD cache delete after a successful handoff leaving a session
+  login that blocked Windows setup, the configuration wizard and the portable
+  updater for good. A finished session's login now moves to
+  `finished-sessions/SESSION/` beside a receipt naming the committed generation
+  before anything is deleted, so a leftover blocks nothing. The next launch or
+  finish retries the cleanup, and so does `recover-start --session SESSION
+  --apply`. A login without that receipt still blocks setup (#104).
 - Fix the backup that `launch --replace-local-library` promises being deleted
   after about ten ordinary handoffs, together with the never-shared clips it
   held. That backup, and the ones `repair` and `relocate` take, now go to
