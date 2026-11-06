@@ -46,6 +46,7 @@ RULES = [
       '.github/workflows/milestones.yml', '.github/workflows/release.yml',
       '.github/workflows/beta.yml', '.github/workflows/pages.yml', 'site/',
       '.github/workflows/branch-cleanup.yml', 'scripts/cleanup-pr-branch.py',
+      '.github/workflows/winget.yml', 'scripts/new-winget-manifest.py',
       'scripts/check-promotion.py', 'scripts/prepare-release.py',
       'scripts/check-repository.py', 'scripts/check-doc-links.mjs',
       'scripts/update-source-manifest.py', 'scripts/generate-icon.py',
@@ -59,6 +60,7 @@ RULES = [
     (['tools/medal-sync/MedalSync.Launch/', 'tests/desktop/', 'tests/scripts/',
       'tests/fixtures/', 'scripts/storage/', 'installer/', 'docs/setup.html',
       'scripts/package-release.ps1', 'scripts/package-windows-installer.ps1',
+      'scripts/use-signed-files.ps1',
       'scripts/setup-installer-toolchain.ps1', 'scripts/test-windows-installer.ps1',
       'scripts/test-windows-installer-isolated.ps1', 'LICENSE', 'THIRD_PARTY.md'], ['desktop']),
     # Everything else, including the core program, its configuration, the SDK

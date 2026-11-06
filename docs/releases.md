@@ -287,7 +287,78 @@ every suite gates publishing. Drafts are invisible to automatic update
 checks, and prereleases are too unless a PC opts in to
 [betas](#beta-releases). A published stable setup is advertised on the
 next desktop launch; installation stays
-explicit and verifies Ready status. Publisher code signing is not configured.
+explicit and verifies Ready status.
+
+### Code signing
+
+Releases are not signed yet. Medal Sync is applying to SignPath
+Foundation's free signing program; the [code signing policy](code-signing.md)
+lists what will be signed and who approves it. Signing needs SignPath's own
+GitHub action, which the repository's Actions allowlist (`actions/*` and
+`github/codeql-action/*`, see [security maintenance](security-maintenance.md))
+does not allow, so the workflow steps are added only after acceptance.
+
+After SignPath accepts the project:
+
+1. In SignPath, create the project (slug `medal-sync`), link it to this
+   repository as a GitHub trusted build system, and add the `programs` and
+   `setup` artifact configurations from the
+   [code signing policy](code-signing.md#how-releases-will-be-signed). Use the
+   `release-signing` signing policy, with manual approval.
+2. Add a SignPath CI user API token as the `SIGNPATH_API_TOKEN` repository
+   secret, and the organization ID as the `SIGNPATH_ORGANIZATION_ID`
+   repository variable.
+3. Review the source of `signpath/github-action-submit-signing-request`, add it
+   to the allowed actions in **Settings → Actions → General**, and list it in
+   [security maintenance](security-maintenance.md).
+4. Add the signing steps to the Windows build job of
+   [validate.yml](../.github/workflows/validate.yml): build the programs with
+   `publish-medal-sync.ps1`, upload them, sign them with the SignPath action,
+   swap them in with `scripts/use-signed-files.ps1`, run `package-release.ps1
+   -SkipBuild` and `package-windows-installer.ps1 -SkipPackage`, then sign the
+   setup EXE the same way with `-RefreshChecksum`. Pass the token from
+   [release.yml](../.github/workflows/release.yml), never from beta or pull
+   request runs, and check every signature again before publishing. A draft of
+   these steps, which passed actionlint but has not run, is in commit
+   `a482e11` of pull request #179.
+5. Remove the unsigned-installer notes from the README, the website,
+   [getting started](getting-started.md) and
+   [installation and updates](updates.md#if-windows-warns-about-the-download)
+   after the first signed release.
+
+### winget
+
+Stable releases can be submitted to the Windows Package Manager by the
+[winget workflow](../.github/workflows/winget.yml), which runs
+[Komac](https://github.com/russellbanks/Komac) to open a pull request in
+`microsoft/winget-pkgs` when a stable release is published. Betas are never
+submitted. It stays off until the first version is in winget-pkgs:
+
+1. After a stable release, write its manifests:
+
+   ```powershell
+   python scripts/new-winget-manifest.py --version 1.4.0.00 `
+     --sidecar medal-sync-1.4.0.00-setup-win-x64.exe.sha256 --out winget
+   ```
+
+2. On Windows, run `winget validate` on the version folder, then test it on a
+   clean Windows VM with `winget install --manifest` for both `--scope machine`
+   and `--scope user`.
+3. Copy the `manifests` folder into a fork of `microsoft/winget-pkgs` and open
+   a pull request. Answer the review until it is merged.
+4. Create a classic GitHub token with only the `public_repo` scope on the
+   account that owns the fork, and save it as the `WINGET_TOKEN` repository
+   secret. Komac cannot open winget-pkgs pull requests with a fine-grained
+   token.
+5. Set the repository variable `WINGET_PACKAGE_IDENTIFIER` to
+   `LarsonLogan.MedalSync`. From then on, every published stable release opens
+   its own winget-pkgs pull request. Choose **Run workflow** with a version to
+   resubmit one.
+6. Add the `winget install` command to the website, and remove "once it is
+   available" from the README, [getting started](getting-started.md) and
+   [install with winget](updates.md#install-with-winget).
+
+Komac is pinned by version and SHA-256 in the workflow. Update both together.
 
 Repository visibility, branch/tag rules and vulnerability reporting remain
 separate GitHub settings. No build or test deploys onto a live library.
