@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Keep the PC awake (system, not display) while a finish uploads and verifies, during idle sync and while `replicate retry --apply` transfers, so a PC left alone after quitting Medal does not sleep with unpublished clips. Released at Ready, on refusals, while waiting for storage and when Medal reopens. `keepAwakeWhileFinishing: false` turns it off (#246).
 - Cloud verification keeps its receipts when rclone refreshes an OAuth token (#221).
 - The clip-drive limit now throttles local and SMB write-back. It also caps reads of clips that are not cached (#222).
 - Windows uninstall asks you to restore Medal's startup entries before removing a launcher they still use (#239).
