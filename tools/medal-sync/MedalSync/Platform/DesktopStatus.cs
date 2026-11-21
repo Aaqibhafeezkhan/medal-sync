@@ -51,6 +51,9 @@ internal sealed record DesktopStatus(SessionPhase Phase, string NextAction, Date
     public string? Heading { get; init; }
     public bool ClipsSynced { get; init; }
 
+    /// <summary>The rclone remote whose last storage check said its sign-in expired or was revoked, offered as Sign in again.</summary>
+    public string? SignInRemote { get; init; }
+
     /// <summary>
     /// A failed sign-in check or a cloud copy that needs attention, whichever notice the panel shows. Kept apart from
     /// <see cref="Notice"/>, which a more urgent notice can replace, so a notification follows each change once.
@@ -123,6 +126,9 @@ internal sealed record DesktopStatus(SessionPhase Phase, string NextAction, Date
             if (status.Notice is null && now - notice.At < TimeSpan.FromHours(1)) status = status with { Notice = notice.Message };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { /* Optional notice. */ }
+        if (StorageCheckReport.Outstanding(state, libraryId).FirstOrDefault(p => p.Result == StorageCheckResult.SignInRequired) is { } expired
+            && ProviderSignIn.RemoteOf(expired.Destination) is { } remote)
+            status = status with { SignInRemote = remote };
         string? signIn = StorageCheckReport.Outstanding(state, libraryId) is { Count: > 0 } problems
             ? "Storage needs attention: " + string.Join(" ", problems.Select(p => p.Detail)) + " Run 'medal-sync storage check' after fixing it."
             : null;

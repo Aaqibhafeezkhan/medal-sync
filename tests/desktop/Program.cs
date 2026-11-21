@@ -40,6 +40,7 @@ internal static class Program
         }
         bool operationRunning = true;
         bool failStart = true;
+        var signIns = new List<string>();
         bool prefetchDue = false;
         int prefetches = 0;
         var notifications = new List<DesktopNotification>();
@@ -49,7 +50,9 @@ internal static class Program
             () => { cloudRetries++; return cloudRetryTask; },
             _ => { if (failStart) throw new System.ComponentModel.Win32Exception(); },
             notifications.Add, () => true, savedNotifications.Add,
-            () => prefetchDue, () => { prefetches++; return null; });
+            () => prefetchDue, () => { prefetches++; return null; },
+            remote => { signIns.Add(remote); return Task.FromResult(new CloudRetryCommandResult(0, "", "")); });
+
         var panel = Field<Form>(view, "_panel");
         var status = Field<TextBox>(view, "_status");
         var retry = Field<Button>(view, "_retry");
@@ -90,13 +93,30 @@ internal static class Program
         Until(view, () => status.Text.Contains("Next action: Synthetic recording\r\n", StringComparison.Ordinal));
         Check(!ReferenceEquals(icons.For(SessionPhase.Active, recording: false), icons.For(SessionPhase.Active)), "Medal open without a game has its own dot");
         CheckIcons(icons, panel);
+        var signInAgain = Field<Button>(view, "_signInAgain");
+        lock (gate) current = new(SessionPhase.Active, "Synthetic open session", DateTimeOffset.UtcNow) { SignInRemote = "gdrive" };
+        Until(view, () => status.Text.Contains("Synthetic open session", StringComparison.Ordinal));
+        Check(signInAgain.Visible && !signInAgain.Enabled && status.Text.Contains("once Medal is quit", StringComparison.Ordinal),
+            "Sign in again waits for the session to finish and says why");
+        lock (gate) current = new(SessionPhase.Ready, "Synthetic expired sign-in", DateTimeOffset.UtcNow) { SignInRemote = "gdrive" };
+        Until(view, () => signInAgain.Enabled);
+        signInAgain.PerformClick();
+        Until(view, () => status.Text.Contains("Signed in again", StringComparison.Ordinal));
+        Check(signIns.SequenceEqual(["gdrive"]), "Sign in again reconnects exactly the remote the storage check named");
+        lock (gate) current = new(SessionPhase.Ready, "Synthetic signed in", DateTimeOffset.UtcNow);
+        Until(view, () => !signInAgain.Visible);
+        Check(notifications.Count == 2 && notifications[1].Kind == DesktopNotificationKind.Ready,
+            "The open session's Ready after signing in again notifies once, like any finish");
+        // Back to this PC's own session, so the next refusal is this PC's finish needing the user.
+        lock (gate) current = new(SessionPhase.Active, "Synthetic recording", DateTimeOffset.UtcNow, Recording: true);
+        Until(view, () => status.Text.Contains("Synthetic recording", StringComparison.Ordinal));
         Check(status.ReadOnly && status.TabStop && status.AccessibleName!.Contains("next action", StringComparison.Ordinal), "Status supports keyboard and accessibility APIs");
         Check(panel.CancelButton is Button, "Escape closes the panel");
         Check(icon.BalloonTipText.Length == 0, "Background status never shows a balloon");
         lock (gate) current = new(SessionPhase.RecoveryNeeded, "Retry after recovery", DateTimeOffset.UtcNow, CanRetry: true);
         Until(view, () => retry.Enabled);
-        Check(notifications.Count == 2 && notifications[1].Kind == DesktopNotificationKind.NeedsAction
-            && notifications[1].Message.StartsWith("Retry after recovery", StringComparison.Ordinal), "A finish that needs the user notifies with the panel's text");
+        Check(notifications.Count == 3 && notifications[2].Kind == DesktopNotificationKind.NeedsAction
+            && notifications[2].Message.StartsWith("Retry after recovery", StringComparison.Ordinal), "A finish that needs the user notifies with the panel's text");
         retry.PerformClick();
         Until(view, () => status.Text.Contains("Run audit and repair before retrying.", StringComparison.Ordinal) && retry.Enabled);
         Check(finishes == 1, "A blocked finish exposes its diagnostic and required recovery action");
